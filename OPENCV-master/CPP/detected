@@ -1,0 +1,101 @@
+#include "stdafx.h"
+#pragma comment(linker, "/STACK:10000000")
+#pragma comment(linker, "/HEAP:10000000")
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
+#include <fstream>
+
+using namespace cv;
+using namespace std;
+
+
+
+int main(int argc, char** argv)
+{
+	//Zmienne
+	Mat image;
+	Mat frame;
+	int licz;
+
+	VideoCapture video("C0518.mp4");
+
+	//Algorytm
+	licz = 1;
+	Mat size1;
+	Mat hsv;
+	int itn = 0;
+	Mat lower_orange(217, 98, 54);
+	Mat upper_orange(255, 103, 38);
+	Mat mask;
+	int t1min = 192;
+	int t1max = 255;
+	int t2min = 86;
+	int t2max = 255;
+	int t3min = 93;
+	int t3max = 255;
+	char TrackbarName1[50] = "R min";
+	char TrackbarName2[50] = "R max";
+	char TrackbarName3[50] = "G min";
+	char TrackbarName4[50] = "G max";
+	char TrackbarName5[50] = "B min";
+	char TrackbarName6[50] = "B max";
+
+	namedWindow("Track1", WINDOW_AUTOSIZE);
+	createTrackbar(TrackbarName1, "Track1", &t1min, 255, NULL);
+	createTrackbar(TrackbarName2, "Track1", &t1max, 255, NULL);
+
+	createTrackbar(TrackbarName3, "Track1", &t2min, 255, NULL);
+	createTrackbar(TrackbarName4, "Track1", &t2max, 255, NULL);
+
+	createTrackbar(TrackbarName5, "Track1", &t3min, 255, NULL);
+	createTrackbar(TrackbarName6, "Track1", &t3max, 255, NULL);
+	Mat eroded;
+	Mat el = getStructuringElement(MORPH_RECT, Size(3, 3));
+	Mat dl = getStructuringElement(MORPH_RECT, Size(8, 8));
+
+	Mat drone;
+	vector<vector<Point> >contours;
+	vector<Vec4i> hierarchy;
+
+	while (1)
+	{
+		video >> frame;
+		if (frame.empty())
+			break;
+
+		system("cls");
+		cout << licz << "/1350" << endl;
+
+		cvtColor(frame, hsv, COLOR_RGB2HSV);
+		inRange(hsv, Scalar(t3min, t2min, t1min), Scalar(t3max, t2max, t3max), mask);
+			erode(mask, eroded, el);
+			erode(eroded, eroded, el);
+			dilate(eroded, eroded, dl);
+			dilate(eroded, eroded, dl);
+			bitwise_and(frame, frame, drone, eroded);
+			findContours(eroded, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+			if (contours.empty())
+				cout << "nie znaleziono tutaj krawedzi" << endl;
+			else {
+				licz++;
+				rectangle(frame, Point(contours[0][0].x - 80, contours[0][0].y - 20), Point(contours[0][0].x + 20, contours[0][0].y + 20), Scalar(t3min, t2min, t1min), 3);
+			}
+		imshow("nomask", frame);
+		imshow("disp", eroded);
+
+
+
+		char c = char(waitKey(1));
+		if (c == 27)
+			break;
+
+		contours.clear();
+
+	}
+
+
+
+	return 0;
+}

@@ -1,0 +1,19 @@
+while(true)
+{
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    capture >> frame;
+    if(frame.empty())
+        break;
+    imshow(videofilename, frame);
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    int elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+
+    //make sure we call waitKey with some value > 0
+    int wait_time = std::max(1, elapsed_time);
+
+    char key = waitKey(wait_time); // waits to display frame
+    if (key == 'q')
+        break;
+}

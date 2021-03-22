@@ -1,0 +1,280 @@
+#include "stdafx.h"
+#pragma comment(linker, "/STACK:10000000")
+#pragma comment(linker, "/HEAP:10000000")
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <iostream>
+#include <fstream>
+
+using namespace cv;
+using namespace std;
+
+int main(int argc, char** argv)
+{
+	//Zmienne
+	int lowerR = 245;
+	int lowerG = 86;
+	int lowerB = 93;
+	int upperR = 255;
+	int upperG = 255;
+	int upperB = 255;
+
+	int circleR = 124;
+	int circleG = 252;
+	int circleB = 0;
+	namedWindow("Trackbar", WINDOW_FULLSCREEN);
+	createTrackbar("Lower R", "Trackbar", &lowerR, 255, NULL);
+	createTrackbar("Lower G", "Trackbar", &lowerG, 255, NULL);
+	createTrackbar("Lower B", "Trackbar", &lowerB, 255, NULL);
+	createTrackbar("Upper R", "Trackbar", &upperR, 255, NULL);
+	createTrackbar("Upper G", "Trackbar", &upperG, 255, NULL);
+	createTrackbar("Upper B", "Trackbar", &upperB, 255, NULL);
+	Mat frame, frame2;
+	Mat hsv;
+	Mat drone;
+	VideoCapture video("Dron Cal 12.55260362.20190821144706.avi");
+	video.set(CAP_PROP_FPS, 60.0f);
+	Mat lower_orange(217.0f, 97.0f, 54.0f);
+	Mat upper_orange(255.05f, 103.0f, 38.0f);
+	Mat mask;
+	Mat erodeElement = getStructuringElement(MORPH_RECT, Size(3, 3));
+	Mat dilateElement = getStructuringElement(MORPH_RECT, Size(8, 8));
+	vector< vector<Point> > contours;
+	vector< vector<Point> > temp;
+	vector< vector<Point> > temp_contours, newContours;
+	int temp_x, temp_y;
+	vector<Vec4i> hierarchy;
+	Mat croppedImage;
+	Rect objectBoundingRectangle = Rect(0, 0, 0, 0);
+	Mat NewImage, edges, circles;
+	bool objectFound = false;
+	int iter = 0;
+	int theObject[2] = { 0, 0 };
+	int fill[8]{};
+
+
+	while (1)
+	{
+		video.read(frame);
+		if (frame.empty())
+			break;
+		if (iter == 0) {
+			cvtColor(frame, hsv, COLOR_RGB2HSV);
+			inRange(hsv, Scalar(lowerB, lowerG, lowerR), Scalar(upperB, upperG, upperR), mask);
+			erode(mask, mask, erodeElement);
+			erode(mask, mask, erodeElement);
+			dilate(mask, mask, dilateElement);
+			dilate(mask, mask, dilateElement);
+
+			findContours(mask, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+			bitwise_and(frame, frame, drone, mask);
+			if (contours.empty());
+			else {
+				croppedImage = frame(Rect(contours.at(0).at(0).x -100, contours.at(0).at(0).y-100 , 200, 200));
+				temp_contours = contours;
+			}
+			cout << contours.at(0).at(0).y << endl;
+			cout << "calosc: " << frame.size() << endl;
+
+
+			iter++;
+		}
+		else {
+
+			cvtColor(croppedImage, hsv, COLOR_RGB2HSV);
+			inRange(hsv, Scalar(lowerB, lowerG, lowerR), Scalar(upperB, upperG, upperR), mask);
+			erode(mask, mask, erodeElement);
+			erode(mask, mask, erodeElement);
+			dilate(mask, mask, dilateElement);
+			dilate(mask, mask, dilateElement);
+
+			findContours(mask, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+			bitwise_and(croppedImage, croppedImage, drone, mask);
+
+			if (contours.empty()) {
+				cvtColor(frame, hsv, COLOR_RGB2HSV);
+				inRange(hsv, Scalar(lowerB, lowerG, lowerR), Scalar(upperB, upperG, upperR), mask);
+				erode(mask, mask, erodeElement);
+				erode(mask, mask, erodeElement);
+				dilate(mask, mask, dilateElement);
+				dilate(mask, mask, dilateElement);
+
+				findContours(mask, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+				bitwise_and(frame, frame, drone, mask);
+
+				if (contours.empty());
+				else {
+					croppedImage = frame(Rect(contours.at(0).at(0).x -100, contours.at(0).at(0).y -100, 200, 200));
+					temp_contours = contours;
+					cout << contours.at(0).at(0).x << endl;
+					if (!temp.empty())
+						temp.clear();
+				}
+			}
+			else {
+				if (temp.empty())
+					temp = contours;
+				else {
+					temp_x = contours.at(0).at(0).x - temp.at(0).at(0).x;
+					temp_y = contours.at(0).at(0).y - temp.at(0).at(0).y;
+					croppedImage = frame(Rect(temp_contours.at(0).at(0).x + temp_x -100 , temp_contours.at(0).at(0).y + temp_y -100 , 200, 200));
+					temp_contours.at(0).at(0).x = temp_contours.at(0).at(0).x + temp_x;
+					temp_contours.at(0).at(0).y = temp_contours.at(0).at(0).y + temp_y;
+					//cvtColor(croppedImage, croppedImage, COLOR_RGB2GRAY);
+					Canny(croppedImage, edges, 150, 200);
+					for (int i = 1; i < 200; i++)
+					{
+						for (int j = 1; j < 200; j++) {
+							if (i + 61 <= 200 && j + 61 <= 200) {
+								NewImage = edges(Rect(i, j, 61, 61));
+								drone = croppedImage(Rect(i, j, 61, 61));
+								findContours(NewImage, newContours, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+								
+
+								for (int i = 0; i < newContours.size(); i++) {
+									for (int j = 0; j < newContours[i].size(); j++) {
+										if ((pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2) < 36))
+										{// cout << "hereeeeee" << endl;
+											continue;
+										}																										//Wewnąrz pierwszego okręgu
+										else if ((pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2)) > 36 && ((pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2)) < 64)) {
+											fill[0]++;
+
+
+											//c
+										} 			//Między pierwszym a drugim okręgiem
+										else if ((pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2)) > 64 && ((pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2)) < 100))
+										{
+											fill[1]++;
+
+
+
+										}		//Między drugim a trzecim okręgiem
+										else if ((pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2)) > 100 && ((pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2)) < 144))
+										{
+											fill[2]++;
+
+
+											//c
+
+										}//Między trzecim a czwartym okręgiem
+										else if ((pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2)) > 144 && ((pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2)) < 196))
+										{
+
+											fill[3]++;
+
+											//c
+
+										}
+										else if ((pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2)) > 196 && (pow(newContours[i][j].x - 30, 2) + pow(newContours[i][j].y - 30, 2) < 256))
+										{
+											fill[4]++;
+
+										}//Między piątym a szóstym okręgiem//Między czwartym a piątym okręgiem
+
+										//imshow("f", drone);
+									}
+								}
+								//cout << fill[0] << endl;
+								//cout << fill[1] << endl;
+								//cout << fill[2] << endl;
+								//cout << fill[3] << endl;
+								if (fill[0]>35)
+								{
+									circle(drone, Point(35, 35), 5, Scalar(255, 0, 0));
+									cout << "zakres 1" << endl;
+									//cout << "true" << endl;
+									//waitKey(0);
+								}
+								if (fill[1] > 45)
+								{
+									//cout << "true" << endl;
+									circle(drone, Point(35, 35), 5, Scalar(0, 255, 0));
+									cout << "zakres 2" << endl;
+									//waitKey(0);
+								}
+								if (fill[2] > 55)
+								{
+									//cout << "true" << endl;
+									circle(drone, Point(35, 35), 5, Scalar(0, 0, 255));
+									cout << "zakres 3" << endl;
+									//waitKey(0);
+								}
+								if (fill[3] > 65)
+								{
+									//cout << "true" << endl;
+									circle(drone, Point(35, 35), 5, Scalar(255, 255, 255));
+									cout << "zakres 4" << endl;
+
+								}
+								if (fill[4] > 85) {
+									circle(drone, Point(35, 35), 5, Scalar(255, 255, 0));
+									cout << "zakres 5" << endl;
+								}
+								fill[0] = 0;
+								fill[1] = 0;
+								fill[2] = 0;
+								fill[3] = 0;
+								fill[4] = 0;
+								
+								imshow("map", NewImage);
+								waitKey(1);
+								
+
+							}
+							
+							//croppedImage = frame(Rect(temp_contours.at(0).at(0).x + temp_x - 50, temp_contours.at(0).at(0).y + temp_y - 25, 200, 100));
+							
+						}
+					}
+					system("cls");
+					cout << "--------------"<<iter<<"--------------" << endl;
+				}
+				//	cout << "fragment: " << croppedImage.size() << endl;
+			}
+		}
+		if (contours.empty())
+		{
+			;
+		}
+		else
+		{
+			/*switch (contours.size())
+			{
+			case 1:
+				circle(croppedImage, Point(contours.at(0).at(0).x + 5, contours.at(0).at(0).y + 5), 5, Scalar(circleR, circleG, circleB), 2);
+			case 2:
+				circle(croppedImage, Point(contours.at(0).at(0).x + 5, contours.at(0).at(0).y + 5), 5, Scalar(circleR, circleG, circleB), 2);
+				circle(croppedImage, Point(contours.back().at(0).x + 5, contours.back().at(0).y + 5), 5, Scalar(circleR, circleG, circleB), 2);
+			}*/
+			//contours_temp = contours;
+			//rectangle(frame, Point(contours[0][0].x - 120, contours[0][0].y - 40), Point(contours[0][0].x + 40, contours[0][0].y + 25), Scalar(150, 100, 50), 2);
+			//putText(frame, "DRONIK", Point(contours[0][0].x - 90, contours[0][0].y - 50), 1, 2, Scalar(150, 100, 50), 2);
+		}
+		//imshow("drone", drone);
+		//imshow("disp2", hsv);
+		//imshow("disp3", mask);
+		//Canny(croppedImage, edges, 150, 200);
+		imshow("disp", croppedImage);
+		circle(croppedImage, Point(30, -30), 6, Scalar(255, 0, 0));
+		imshow("frame", frame);
+	
+
+		
+
+		contours.clear();
+		iter++;
+		char c = char(waitKey(1));
+		if (c == 27)
+			break;
+
+
+
+
+	}
+
+	waitKey(1); // Wait for a keystroke in the window
+	return 0;
+}

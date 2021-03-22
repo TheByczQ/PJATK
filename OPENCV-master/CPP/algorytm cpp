@@ -1,0 +1,94 @@
+#include "stdafx.h"
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
+#include <vector>
+
+
+using namespace cv;
+using namespace std;
+
+
+
+int main(int argc, char** argv)
+{
+	//Zmienne
+	const unsigned int rozm = 800;
+	Mat image;
+	Size size(10, 7);
+	vector <Point2f> outputarray;
+	string frame;
+	vector<Point3f> obj;
+	Mat intrinsic = Mat(3, 3, CV_32FC1);
+	Mat distCoeffs;
+	Mat imageUndistorted;
+	vector<Mat> rvecs;
+	vector<Mat> tvecs;
+	vector<vector<Point3f>> object_points;
+	vector<vector<Point2f>> image_points;
+	int lost=0;
+	for (int j = 0; j<70; j++)		obj.push_back(Point3f(j / 10, j % 10, 0.0f));
+
+
+	//Wczytywanie zdjęć (rozm przechowuje ich ilosc)
+	//Algorytm
+	for (int i = 0; i < rozm; i++)
+	{
+		system("cls");
+		frame = "img00" + to_string(i + 101) + "_l.bmp";
+		image = imread(frame, IMREAD_GRAYSCALE);
+		cout << "wczytano " << i + 1 << endl;
+		cout << i + 1 << "/" << rozm << endl;
+		cout << "pomineto " << lost << endl;
+		if (findChessboardCorners(image, size, outputarray))
+		{
+			image_points.push_back(outputarray);
+			
+			if (i > 0)
+			{
+				if (abs((image_points[i - 1][0].x) - (image_points[i][0].x)) > 15.0f || abs((image_points[i-1][0].y - image_points[i][0].y)) > 15.0f || 
+					(sqrt(pow((image_points[i - 1].at(0).x + image_points[i - 1].back().x), 2) + pow((image_points[i - 1].at(0).y + image_points[i - 1].back().y),2)) -
+					sqrt(pow((image_points[i].at(0).x + image_points[i].back().x), 2) + pow((image_points[i].at(0).y + image_points[i].back().y),2)))>15.0f)
+				{
+					cornerSubPix(image, outputarray, Size(5, 5), Size(-1, -1), TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 10, 1e-6));
+					object_points.push_back(obj);
+				}
+				else
+				{
+					lost++;
+					
+				}
+
+			}
+		}
+		else
+		{
+			lost++;
+			
+		}
+		//drawChessboardCorners(image[i], size, outputarray, 1);
+	}
+	//Macierz
+	intrinsic.ptr<float>(0)[0] = 1200;
+	intrinsic.ptr<float>(0)[1] = 0;
+	intrinsic.ptr<float>(0)[2] = (float)1279 / (float)2;
+	intrinsic.ptr<float>(1)[0] = 0;
+	intrinsic.ptr<float>(1)[1] = 1280;
+	intrinsic.ptr<float>(1)[2] = (float)1023 / (float)2;
+	intrinsic.ptr<float>(2)[0] = 0;
+	intrinsic.ptr<float>(2)[1] = 0;
+	intrinsic.ptr<float>(2)[2] = 1;
+
+	//Kalibracja i undistorsja
+	cout << calibrateCamera(object_points, image_points, image.size(), intrinsic, distCoeffs, rvecs, tvecs, 0, TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 5, DBL_EPSILON)) << endl;
+	undistort(image, imageUndistorted, intrinsic, distCoeffs);
+	cout << intrinsic << endl;
+	cout << distCoeffs << endl;
+	//Wyświetlanie
+	imshow("Display window1", image);
+	imshow("Display window2", imageUndistorted);
+
+	waitKey(0); // Wait for a keystroke in the window
+	return 0;
+}

@@ -1,0 +1,118 @@
+#include "stdafx.h"
+#pragma comment(linker, "/STACK:10000000")
+#pragma comment(linker, "/HEAP:10000000")
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
+#include <fstream>
+
+using namespace cv;
+using namespace std;
+
+int main(int argc, char** argv)
+{
+	//Zmienne
+	int lowerR = 169;
+	int lowerG = 86;
+	int lowerB = 93;
+	int upperR = 255;
+	int upperG = 255;
+	int upperB = 255;
+
+	int circleR = 124;
+	int circleG = 252;
+	int circleB = 0;
+	namedWindow("Trackbar", WINDOW_FULLSCREEN);
+	createTrackbar("Lower R", "Trackbar", &lowerR, 255, NULL);
+	createTrackbar("Lower G", "Trackbar", &lowerG, 255, NULL);
+	createTrackbar("Lower B", "Trackbar", &lowerB, 255, NULL);
+	createTrackbar("Upper R", "Trackbar", &upperR, 255, NULL);
+	createTrackbar("Upper G", "Trackbar", &upperG, 255, NULL);
+	createTrackbar("Upper B", "Trackbar", &upperB, 255, NULL);
+	Mat frame, frame2;
+	vector<Point> temp[3];
+	Point v;
+	Mat hsv;
+	Mat drone;
+	Point obliczone, rzeczywiste;
+	VideoCapture video("drone2.mp4");
+	video.set(CAP_PROP_FPS, 60.0f);
+	Mat lower_orange(217.0f, 97.0f, 54.0f);
+	Mat upper_orange(255.05f, 103.0f, 38.0f);
+	Mat mask;
+	Mat erodeElement = getStructuringElement(MORPH_RECT, Size(3, 3));
+	Mat dilateElement = getStructuringElement(MORPH_RECT, Size(8, 8));
+	vector< vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	bool objectFound = false;
+	int iter = 0;
+
+
+	while (1)
+	{
+		for (int i = 0; i <= 2; i++)
+		{
+			if (i <= 1)
+			{
+				video.read(frame);
+				if (frame.empty())
+					break;
+				cvtColor(frame, hsv, COLOR_RGB2HSV);
+				inRange(hsv, Scalar(lowerB, lowerG, lowerR), Scalar(upperB, upperG, upperR), mask);
+				erode(mask, mask, erodeElement);
+				erode(mask, mask, erodeElement);
+				dilate(mask, mask, dilateElement);
+				dilate(mask, mask, dilateElement);
+
+				findContours(mask, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+				bitwise_and(frame, frame, drone, mask);
+				if (contours.empty())
+				{
+					;
+				}
+				else
+				{
+					
+					temp->push_back(contours[0][0]);
+					circle(frame, Point(contours[0][0].x + 5, contours[0][0].y + 5), 7, Scalar(circleR, circleG, circleB), 2);
+					rectangle(frame, Point(contours[0][0].x - 120, contours[0][0].y - 40), Point(contours[0][0].x + 40, contours[0][0].y + 25), Scalar(255, 255, 255), 2);
+					//putText(frame, "DRONIK", Point(contours[0][0].x - 90, contours[0][0].y - 50), 1, 2, Scalar(150, 100, 50), 2);
+				}
+			}
+			else
+			{
+				cout << "KLATKA: " << iter << endl;
+				cout << "blad x:";
+				cout << obliczone.x - temp->back().x << endl;
+				cout << "blad y:";
+				cout << obliczone.y - temp->back().y << endl << endl;
+				v.x = temp->back().x + (temp->back().x - temp->at(temp->size()-2).x);
+				v.y = temp->back().y + (temp->back().y - temp->at(temp->size()-2).y);
+				obliczone.x = v.x;
+				obliczone.y = v.y;
+				
+				circle(frame, Point(v.x + 5, v.y + 5), 7, Scalar(circleR, circleG, circleB), 2);
+				rectangle(frame, Point(v.x - 120, v.y - 40), Point(v.x + 40, v.y + 25), Scalar(0, 0, 0), 2);
+				putText(frame, "ESTIMATED", Point(v.x - 120, v.y - 50), 1, 2, Scalar(200, 50, 100), 2);
+			}
+			//imshow("drone", drone);
+			//imshow("disp2", hsv);
+			imshow("disp3", mask);
+			imshow("disp", frame);
+			contours.clear();
+			iter++;
+			char c = char(waitKey(1));
+			if (c == 27)
+				break;
+		}
+		
+
+
+
+
+	}
+
+	waitKey(1); // Wait for a keystroke in the window
+	return 0;
+}

@@ -1,0 +1,72 @@
+#include "stdafx.h"
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
+
+
+using namespace cv;
+using namespace std;
+
+
+
+int main(int argc, char** argv)
+{
+	//Zmienne
+	const unsigned int rozm = 100;
+	Mat image[rozm];
+	Size size(10, 7);
+	Mat outputarray;
+	string frame;
+	vector<Point3f> obj;
+	Mat intrinsic = Mat(3, 3, CV_32FC1);
+	Mat distCoeffs;
+	Mat imageUndistorted;
+	vector<Mat> rvecs;
+	vector<Mat> tvecs;
+	vector<vector<Point3f>> object_points;
+	vector<vector<Point2f>> image_points;
+
+	for (int j = 0; j<70; j++)		obj.push_back(Point3f(j / 10, j % 10, 0.0f));
+
+	//Pętle
+	for (int i = 0; i < rozm; i++)
+	{
+		frame = "img00" + to_string(i + 125) + "_l.bmp";
+		image[i] = imread(frame, IMREAD_GRAYSCALE);
+	}
+
+	for (int i = 0; i < rozm; i++)
+	{
+		findChessboardCorners(image[i], size, outputarray);
+		cornerSubPix(image[i], outputarray, Size(5, 5), Size(-1, -1), TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 30, 1e-6));
+		system("cls");
+		cout << i + 1 << "/" << rozm << endl;
+		//drawChessboardCorners(image[i], size, outputarray, 1);
+	}
+
+	image_points.push_back(outputarray);
+	object_points.push_back(obj);
+
+	//Macierz
+	intrinsic.ptr<float>(0)[0] = 1200;
+	intrinsic.ptr<float>(0)[1] = 0;
+	intrinsic.ptr<float>(0)[2] = (float)1279 / (float)2;
+	intrinsic.ptr<float>(1)[0] = 0;
+	intrinsic.ptr<float>(1)[1] = 1280;
+	intrinsic.ptr<float>(1)[2] = (float)1023 / (float)2;
+	intrinsic.ptr<float>(2)[0] = 0;
+	intrinsic.ptr<float>(2)[1] = 0;
+	intrinsic.ptr<float>(2)[2] = 1;
+
+	//Kalibracja i undistorsja
+	cout << calibrateCamera(object_points, image_points, image[0].size(), intrinsic, distCoeffs, rvecs, tvecs, 0,TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 30, DBL_EPSILON)) << endl;
+	undistort(image[0], imageUndistorted, intrinsic, distCoeffs);
+
+	//Wyświetlanie
+	imshow("Display window1", image[0]);
+	imshow("Display window2", imageUndistorted);
+
+	waitKey(0); // Wait for a keystroke in the window
+	return 0;
+}

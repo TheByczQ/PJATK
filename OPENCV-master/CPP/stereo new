@@ -1,0 +1,143 @@
+#include "stdafx.h"
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
+#include <fstream>
+#include <ctime> 
+#include <opencv2/calib3d.hpp>
+
+using namespace cv;
+using namespace std;
+
+
+
+int main(int argc, char** argv)
+{
+	//Zmienne
+	const unsigned int rozm = 85;
+	Mat image;
+	Mat image_r;
+	int CorHor = 5;
+	int CorVer = 15;
+	Size size(CorHor, CorVer);
+	vector <Point2f> outputarray;
+	vector <Point2f> outputarray_r;
+	vector <Point2f> corners;
+	string frame;
+	string frame_r;
+	vector<Point3f> obj;
+	Mat intrinsic = Mat(3, 3, CV_32FC1);
+	Mat distCoeffs;
+	Mat distCoeffs_r;
+	Mat imageUndistorted;
+	vector<Mat> rvecs;
+	vector<Mat> tvecs;
+	Mat stdDeviationsIntrinsics;
+	Mat stdDeviationsExtrinsics;
+	Mat stdDeviationsObjPoints;
+	Mat perViewErrors;
+	vector<vector<Point3f>> object_points;
+	vector<vector<Point2f>> image_points;
+	vector<vector<Point2f>> image_points_r;
+	int lost = 0;
+	int licz = 0;
+	for (int i = 0; i < CorVer; i++)
+	{
+		for (int j = 0; j < CorHor; j++)
+		{
+			obj.push_back(Point3f((2 * j + i % 2) * 128, i * 128, 0.0f));
+		}
+	}
+	int found = 0;
+	//Algorytm
+	licz = 1;
+
+	for (int i = 0; i < rozm; i++)
+	{
+		if (i < 79) continue;
+		system("cls");
+		frame = "C:/Users/Grafika Multimedia/source/repos/Test/Test/conventered/Cam3/img" + to_string(i) + ".jpg";
+		frame_r = "C:/Users/Grafika Multimedia/source/repos/Test/Test/conventered/Cam4/img" + to_string(i) + ".jpg";
+		image = imread(frame, IMREAD_GRAYSCALE);
+		image_r = imread(frame_r, IMREAD_GRAYSCALE);
+		cout << i + 1 << "/" << rozm << endl;
+		cout << "pomineto " << lost << endl;
+		cout << "dopasowano: " << found << endl;
+		if (findCirclesGrid(image, size, outputarray, CALIB_CB_ASYMMETRIC_GRID) && findCirclesGrid(image_r, size, outputarray_r, CALIB_CB_ASYMMETRIC_GRID))
+		{
+			found++;
+			image_points.push_back(outputarray);
+			image_points_r.push_back(outputarray_r);
+			object_points.push_back(obj);
+			corners = outputarray;
+
+			licz++;
+
+		}
+		else
+		{
+			lost++;
+		}
+	}
+	
+	//Macierz
+	intrinsic.ptr<float>(0)[0] = 1.11510032e+03f;
+	intrinsic.ptr<float>(0)[1] = 0.0f;
+	intrinsic.ptr<float>(0)[2] = 5.99616631e+02f;
+	intrinsic.ptr<float>(1)[0] = 0.0f;
+	intrinsic.ptr<float>(1)[1] = 1.14168758e+03f;
+	intrinsic.ptr<float>(1)[2] = 5.05226607e+02f;
+	intrinsic.ptr<float>(2)[0] = 0.0f;
+	intrinsic.ptr<float>(2)[1] = 0.0f;
+	intrinsic.ptr<float>(2)[2] = 1.0f;
+	Mat image_l;
+	Mat in = Mat(3, 3, CV_32FC1);
+
+	//Mat image_r;
+	image_r = imread("C:/Users/Grafika Multimedia/source/repos/Test/Test/conventered/Cam4/img1.jpg", IMREAD_GRAYSCALE);
+
+	//Kalibracja i undistorsja
+	fstream plik;
+	plik.open("logs.txt", ios::in | ios::out);
+	if (plik.good() == true)
+	{
+		cout << "Uzyskano dostep do pliku!" << std::endl;
+		//tu operacje na pliku
+	}
+	else cout << "Dostep do pliku zostal zabroniony!" << endl;
+	cout << "left calibration started" << endl;
+	plik << "BLAD KAMERA 1:" << endl;
+	plik << calibrateCamera(object_points, image_points, image_l.size(), intrinsic, distCoeffs, rvecs, tvecs, 0, TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 30, DBL_EPSILON)) << endl; //lewo
+	cout << "left calibrated" << endl;
+	cout << "right calibration started" << endl;
+	plik << "BLAD KAMERA 2:" << endl;
+	plik << calibrateCamera(object_points, image_points_r, image_r.size(), intrinsic, distCoeffs_r, rvecs, tvecs, 0, TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 30, DBL_EPSILON)) << endl; //prawa
+	cout << "right calibrated" << endl;
+	Mat R, T, E, F, error;
+	cout << "stereo calibration started" << endl;
+	plik << "BLAD STEREO:" << endl;
+	plik << stereoCalibrate(object_points, image_points, image_points_r, intrinsic, distCoeffs, intrinsic, distCoeffs_r, image_l.size(), R, T, E, F, error, CALIB_FIX_INTRINSIC + CALIB_USE_INTRINSIC_GUESS + CALIB_FIX_K1 + CALIB_FIX_K2 + CALIB_FIX_K3 + CALIB_FIX_K4 + CALIB_FIX_K5, TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 30, 1e-6)) << endl;
+	cout << "stereo calibration done" << endl;
+	plik << "ODL T:" << endl;
+	plik << T;
+	plik << "distCoeffs:" << endl;
+	plik << distCoeffs;
+	plik << "distCoeffs_r:" << endl;
+	plik << distCoeffs_r;
+	plik << "intrinsic:" << endl;
+	plik << intrinsic;
+	Mat imageUndistorted_l;
+	Mat imageUndistorted_r;
+	
+	/*undistort(image_l, imageUndistorted_l, intrinsic, distCoeffs);
+	undistort(image_r, imageUndistorted_r, intrinsic, distCoeffs_r);
+	//Wyświetlanie
+	imshow("Display windowL", imageUndistorted_l);
+	imshow("Display windowR", imageUndistorted_r);*/
+
+	cin.get();
+	cin.get();
+	waitKey(0); // Wait for a keystroke in the window
+	return 0;
+}

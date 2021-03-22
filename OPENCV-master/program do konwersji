@@ -1,0 +1,34 @@
+#include "stdafx.h"
+#pragma comment(linker, "/STACK:10000000")
+#pragma comment(linker, "/HEAP:10000000")
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
+#include <fstream>
+
+using namespace cv;
+using namespace std;
+
+int main(int argc, char** argv)
+{
+	//Zmienne
+	VideoCapture video("C:/Users/Grafika Multimedia/source/repos/Test/Test/toConvert/dozrobienia1.avi");
+	video.set(CAP_PROP_FPS, 25.0f);
+	int iter = 0;
+	Mat frame;
+	string filename = "img";
+	while (1)
+	{
+		filename = "C:/Users/Grafika Multimedia/source/repos/Test/Test/conventered/img" + to_string(iter) + ".jpg";
+		video.read(frame);
+		if (frame.empty())
+			break;
+		imwrite(filename, frame);
+		imshow("wind", frame);
+		iter++;
+	}
+
+	waitKey(1); // Wait for a keystroke in the window
+	return 0;
+}

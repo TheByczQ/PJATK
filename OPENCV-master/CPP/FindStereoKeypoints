@@ -1,0 +1,156 @@
+#include "stdafx.h"
+#pragma comment(linker, "/STACK:10000000")
+#pragma comment(linker, "/HEAP:10000000")
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
+#include <fstream>
+
+using namespace cv;
+using namespace std;
+
+int main(int argc, char** argv)
+{
+	//Zmienne
+	int lowerR = 245;
+	int lowerG = 86;
+	int lowerB = 93;
+	int upperR = 255;
+	int upperG = 255;
+	int upperB = 255;
+
+	int circleR = 124;
+	int circleG = 252;
+	int circleB = 0;
+	namedWindow("Trackbar", WINDOW_FULLSCREEN);
+	createTrackbar("Lower R", "Trackbar", &lowerR, 255, NULL);
+	createTrackbar("Lower G", "Trackbar", &lowerG, 255, NULL);
+	createTrackbar("Lower B", "Trackbar", &lowerB, 255, NULL);
+	createTrackbar("Upper R", "Trackbar", &upperR, 255, NULL);
+	createTrackbar("Upper G", "Trackbar", &upperG, 255, NULL);
+	createTrackbar("Upper B", "Trackbar", &upperB, 255, NULL);
+	Mat frame, frame2;
+	Mat hsv;
+	Mat drone;
+	VideoCapture video("Dron Cal 19.55260362.20190821145129.avi");
+	VideoCapture video1("Dron Cal 19.60323667.20190821145129.avi");
+	video.set(CAP_PROP_FPS, 60.0f);
+	Mat lower_orange(217.0f, 97.0f, 54.0f);
+	Mat upper_orange(255.05f, 103.0f, 38.0f);
+	Mat mask, mask2;
+	Mat erodeElement = getStructuringElement(MORPH_RECT, Size(3, 3));
+	Mat dilateElement = getStructuringElement(MORPH_RECT, Size(8, 8));
+	vector< vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	bool objectFound = false;
+	int iter = 0;
+
+
+	//while (1)
+	//{
+		video.read(frame);
+		video1.read(frame2);
+	//	if (frame.empty())
+		//	break;
+		cvtColor(frame, hsv, COLOR_RGB2HSV);
+		inRange(hsv, Scalar(lowerB, lowerG, lowerR), Scalar(upperB, upperG, upperR), mask);
+		erode(mask, mask, erodeElement);
+		erode(mask, mask, erodeElement);
+		dilate(mask, mask, dilateElement);
+		dilate(mask, mask, dilateElement);
+
+
+		findContours(mask, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+		bitwise_and(frame, frame, drone, mask);
+		if (contours.empty())
+		{
+			;
+		}
+		else
+		{
+
+			//circle(frame, Point(contours[0][0].x + 5, contours[0][0].y + 5), 7, Scalar(circleR, circleG, circleB), 2);
+			circle(frame, Point(contours[0][0].x + 5, contours[0][0].y + 5), 7, Scalar(circleR, circleG, circleB), 2);
+			//rectangle(frame, Point(contours[0][0].x - 120, contours[0][0].y - 40), Point(contours[0][0].x + 40, contours[0][0].y + 25), Scalar(150, 100, 50), 2);
+			//putText(frame, "DRONIK", Point(contours[0][0].x - 90, contours[0][0].y - 50), 1, 2, Scalar(150, 100, 50), 2);
+		}
+		cvtColor(frame2, hsv, COLOR_RGB2HSV);
+		inRange(hsv, Scalar(lowerB, lowerG, lowerR), Scalar(upperB, upperG, upperR), mask2);
+		erode(mask2, mask2, erodeElement);
+		erode(mask2, mask2, erodeElement);
+		dilate(mask2, mask2, dilateElement);
+		dilate(mask2, mask2, dilateElement);
+
+		findContours(mask2, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+		bitwise_and(frame2, frame2, drone, mask2);
+		if (contours.empty())
+		{
+			;
+		}
+		else
+		{
+
+			//circle(frame, Point(contours[0][0].x + 5, contours[0][0].y + 5), 7, Scalar(circleR, circleG, circleB), 2);
+			circle(frame2, Point(contours[1][0].x + 5, contours[1][0].y + 5), 7, Scalar(circleR, circleG, circleB), 2);
+			//rectangle(frame, Point(contours[0][0].x - 120, contours[0][0].y - 40), Point(contours[0][0].x + 40, contours[0][0].y + 25), Scalar(150, 100, 50), 2);
+			//putText(frame, "DRONIK", Point(contours[0][0].x - 90, contours[0][0].y - 50), 1, 2, Scalar(150, 100, 50), 2);
+		}
+		//imshow("drone", drone);
+		//imshow("disp2", hsv);
+		//imshow("disp3", mask);
+		Mat outi, outi_r, descriptor_l, descriptor_r;
+		vector<vector<DMatch>> matches;
+		int k;
+		vector< KeyPoint > kp;
+		Ptr<FastFeatureDetector> fast = FastFeatureDetector::create();
+		vector< KeyPoint > kp1;
+		Ptr<FastFeatureDetector> fast1 = FastFeatureDetector::create();
+		//fast->detect(image_l, kp);
+		//fast1->detect(image_r, kp1);
+		Ptr<AKAZE> akaze = AKAZE::create();
+		Ptr<AKAZE> akaze1 = AKAZE::create();
+
+		//akaze->detectAndCompute(image_l, noArray(), kp, descriptor_l);
+		//akaze->detectAndCompute(image_r, noArray(), kp1, descriptor_r);
+
+		akaze->detectAndCompute(frame, mask, kp, descriptor_l);
+		akaze1->detectAndCompute(frame2, mask2, kp1, descriptor_r);
+
+		//drawKeypoints(frame, kp, outi);
+		//drawKeypoints(frame2, kp1, outi_r);
+
+		BFMatcher matcher(NORM_L2);
+		matcher.knnMatch(descriptor_l, descriptor_r, matches, 2);
+
+		std::vector<DMatch> match1;
+		std::vector<DMatch> match2;
+
+		for (int i = 0; i<matches.size(); i++)
+		{
+			match1.push_back(matches[i][0]);
+			match2.push_back(matches[i][1]);
+		}
+
+		Mat img_matches1, img_matches2;
+		drawMatches(frame, kp, frame2, kp1, match1, img_matches1);
+		drawMatches(frame, kp, frame2, kp1, match2, img_matches2);
+		imshow("lewa", img_matches1);
+		imshow("prawa", img_matches2);
+		//imshow("disp", frame);
+	//	imshow("disp2", frame2);
+		contours.clear();
+		iter++;
+		//char c = char(waitKey(1));
+	//	if (c == 27)
+		//	break;
+
+
+
+
+	//}
+
+	waitKey(1); // Wait for a keystroke in the window
+	cin.get();
+	return 0;
+}

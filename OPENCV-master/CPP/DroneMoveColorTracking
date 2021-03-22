@@ -1,0 +1,315 @@
+#include "stdafx.h"
+#pragma comment(linker, "/STACK:10000000")
+#pragma comment(linker, "/HEAP:10000000")
+#include <opencv2\opencv.hpp>
+#include<opencv2\highgui.hpp>
+
+using namespace std;
+using namespace cv;
+
+const static int SESITIVITY_VALUE = 20;
+const static int BLUR_SIZE = 10;
+
+int theObject[2] = { 0, 0 };
+
+Rect objectBoundingRectangle = Rect(0, 0, 0, 0);
+
+string intToString(int number) {
+	stringstream ss;
+	ss << number;
+	return ss.str();
+}
+//---Funckja znajdujaca drona po kolorze pomaranczowym i ruchu---//
+Mat searchForOrangeMovement(Mat thresholdImage, Mat &cameraFeed, int lowerR, int lowerG, int lowerB, int upperR, int upperG, int upperB) {
+	bool objectDetected = false;
+	Mat temp;
+	Mat hsv, mask;
+	int x, y;
+	
+	
+	Mat erodeElement = getStructuringElement(MORPH_RECT, Size(3, 3));
+	Mat dilateElement = getStructuringElement(MORPH_RECT, Size(8, 8));
+	thresholdImage.copyTo(mask);
+	cameraFeed.copyTo(mask, mask);
+	vector<vector<Point>> contours;
+	vector<Vec4i> hierarchy;
+
+	cvtColor(mask, hsv, COLOR_RGB2HSV);
+	inRange(hsv, Scalar(lowerB, lowerG, lowerR), Scalar(upperB, upperG, upperR), mask);
+	erode(mask, mask, erodeElement);
+	erode(mask, mask, erodeElement);
+	dilate(mask, mask, dilateElement);
+	dilate(mask, mask, dilateElement);
+
+	findContours(mask, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+	if (contours.empty());
+	else {
+
+		switch (contours.size())
+		{
+			case 2:
+					if (contours.size() > 0)objectDetected = true;
+					else objectDetected = false;
+
+					if (objectDetected)
+					{
+						vector<vector<Point>> largestContourVec;
+						largestContourVec.push_back(contours.at(contours.size() - 2));
+						objectBoundingRectangle = boundingRect(largestContourVec.at(0));
+						int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
+						int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
+						theObject[0] = xpos, theObject[1] = ypos;
+					}
+					 x = theObject[0];
+					 y = theObject[1];
+
+					circle(cameraFeed, Point(x, y), 5, Scalar(0, 255, 0), 2);
+
+					if (contours.size() > 0)objectDetected = true;
+					else objectDetected = false;
+
+					if (objectDetected)
+					{
+						vector<vector<Point>> largestContourVec;
+						largestContourVec.push_back(contours.at(contours.size() - 1));
+						objectBoundingRectangle = boundingRect(largestContourVec.at(0));
+						int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
+						int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
+					theObject[0] = xpos, theObject[1] = ypos;
+					}
+					 x = theObject[0];
+					 y = theObject[1];
+
+					circle(cameraFeed, Point(x, y), 5, Scalar(0, 255, 0), 2);
+				
+			case 1:
+					if (contours.size() > 0)objectDetected = true;
+					else objectDetected = false;
+
+					if (objectDetected)
+					{
+						vector<vector<Point>> largestContourVec;
+						largestContourVec.push_back(contours.at(contours.size() - 1));
+						objectBoundingRectangle = boundingRect(largestContourVec.at(0));
+						int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
+						int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
+						theObject[0] = xpos, theObject[1] = ypos;
+					}
+					 x = theObject[0];
+					 y = theObject[1];
+
+					circle(cameraFeed, Point(x, y), 5, Scalar(0, 255, 0), 2);
+		}
+		contours.clear();
+	}
+	return mask;
+}
+//---Funkcja znajdujaca drona po kolorze bialym i ruchu (nie dopracowana)---//
+Mat searchForWhiteMovement(Mat thresholdImage, Mat &cameraFeed, int lowerRw, int lowerGw, int lowerBw, int upperRw, int upperGw, int upperBw) {
+	bool objectDetected = false;
+	Mat temp;
+	Mat hsv, mask;
+	int x, y;
+
+
+	Mat erodeElement = getStructuringElement(MORPH_RECT, Size(3, 3));
+	Mat dilateElement = getStructuringElement(MORPH_RECT, Size(8, 8));
+	thresholdImage.copyTo(mask);
+	cameraFeed.copyTo(mask, mask);
+	vector<vector<Point>> contours;
+	vector<Vec4i> hierarchy;
+
+	cvtColor(mask, hsv, COLOR_RGB2HSV);
+	inRange(hsv, Scalar(lowerBw, lowerGw, lowerRw), Scalar(upperBw, upperGw, upperRw), mask);
+	erode(mask, mask, erodeElement);
+	erode(mask, mask, erodeElement);
+	dilate(mask, mask, dilateElement);
+	dilate(mask, mask, dilateElement);
+
+	findContours(mask, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+	if (contours.empty());
+	else {
+
+		switch (contours.size())
+		{
+		case 2:
+			if (contours.size() > 0)objectDetected = true;
+			else objectDetected = false;
+
+			if (objectDetected)
+			{
+				vector<vector<Point>> largestContourVec;
+				largestContourVec.push_back(contours.at(contours.size() - 2));
+				objectBoundingRectangle = boundingRect(largestContourVec.at(0));
+				int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
+				int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
+				theObject[0] = xpos, theObject[1] = ypos;
+			}
+			x = theObject[0];
+			y = theObject[1];
+
+			circle(cameraFeed, Point(x, y), 5, Scalar(0, 255, 0), 2);
+
+			if (contours.size() > 0)objectDetected = true;
+			else objectDetected = false;
+
+			if (objectDetected)
+			{
+				vector<vector<Point>> largestContourVec;
+				largestContourVec.push_back(contours.at(contours.size() - 1));
+				objectBoundingRectangle = boundingRect(largestContourVec.at(0));
+				int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
+				int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
+				theObject[0] = xpos, theObject[1] = ypos;
+			}
+			x = theObject[0];
+			y = theObject[1];
+
+			circle(cameraFeed, Point(x, y), 5, Scalar(0, 255, 0), 2);
+
+		case 1:
+			if (contours.size() > 0)objectDetected = true;
+			else objectDetected = false;
+
+			if (objectDetected)
+			{
+				vector<vector<Point>> largestContourVec;
+				largestContourVec.push_back(contours.at(contours.size() - 1));
+				objectBoundingRectangle = boundingRect(largestContourVec.at(0));
+				int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
+				int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
+				theObject[0] = xpos, theObject[1] = ypos;
+			}
+			x = theObject[0];
+			y = theObject[1];
+
+		circle(cameraFeed, Point(x, y), 5, Scalar(0, 255, 0), 2);
+		}
+		contours.clear();
+	}
+	return mask;
+}
+
+//---Funkcja glowna---//
+int main()
+{
+	bool objectDetected = false;
+	bool debugMode = false;
+	bool trackingEnabled = false;
+	bool pause = false;
+	Mat frame1, frame2;
+	Mat grayImage1, grayImage2;
+	Mat differenceImage;
+	Mat thresholdImage;
+	Mat mask, mask2;
+	int lowerR = 150;
+	int lowerG = 86;
+	int lowerB = 93;
+	int upperR = 255;
+	int upperG = 255;
+	int upperB = 255;
+	int lowerRw = 23;
+	int lowerGw = 51;
+	int lowerBw = 63;
+	int upperRw = 255;
+	int upperGw = 255;
+	int upperBw = 255;
+	VideoCapture capture;
+
+	namedWindow("Trackbar", WINDOW_FULLSCREEN);
+	createTrackbar("Lower R", "Trackbar", &lowerRw, 255, NULL);
+	createTrackbar("Lower G", "Trackbar", &lowerGw, 255, NULL);
+	createTrackbar("Lower B", "Trackbar", &lowerBw, 255, NULL);
+	createTrackbar("Upper R", "Trackbar", &upperRw, 255, NULL);
+	createTrackbar("Upper G", "Trackbar", &upperGw, 255, NULL);
+	createTrackbar("Upper B", "Trackbar", &upperBw, 255, NULL);
+
+	while (1)
+	{
+		capture.open("C0795.mp4");
+
+		if (!capture.isOpened())
+		{
+			cout << "ERROR" << endl;
+			getchar();
+			return -1;
+		}
+		//---Petla glowna---//
+		while (capture.get(CAP_PROP_POS_FRAMES) < capture.get(CAP_PROP_FRAME_COUNT) - 1)
+		{
+			capture.read(frame1);
+
+			cvtColor(frame1, grayImage1, COLOR_BGR2GRAY);
+
+			capture.read(frame2);
+			cvtColor(frame2, grayImage2, COLOR_BGR2GRAY);
+
+			absdiff(grayImage1, grayImage2, differenceImage);
+
+			threshold(differenceImage, thresholdImage, SESITIVITY_VALUE, 255, THRESH_BINARY);
+
+
+			if (debugMode == true) {
+				imshow("Difference Image", differenceImage);
+				imshow("Threshold Image", thresholdImage);
+			}
+			else {
+				destroyWindow("Difference Image");
+				destroyWindow("Threshold Image");
+			}
+
+			blur(thresholdImage, thresholdImage, Size(BLUR_SIZE, BLUR_SIZE));
+			threshold(thresholdImage, thresholdImage, SESITIVITY_VALUE, 255, THRESH_BINARY);
+			//--przycisk 'd' do wyswietlenie ruchu drona---//
+			if (debugMode == true) {
+				imshow("Final threshold Image", thresholdImage);
+			}
+			else {
+				destroyWindow("Final threshold Image");
+			}
+			//---przycisk 't' do wlaczenia sledzenia---//
+			if (trackingEnabled)
+			{
+				mask = searchForOrangeMovement(thresholdImage, frame1,  lowerR,  lowerG,  lowerB,  upperR,  upperG, upperB);
+				mask2 = searchForWhiteMovement(thresholdImage, frame1, lowerRw, lowerGw, lowerBw, upperRw, upperGw, upperBw);
+				imshow("orange", mask);
+				imshow("white", mask2);
+			}
+			else {
+				destroyWindow("orange");
+				destroyWindow("white");
+			}
+
+			imshow("Frame", frame1);
+			switch (waitKey(10)) {
+			case 27:
+				return 0;
+			case 116:
+				trackingEnabled = !trackingEnabled;
+				if (trackingEnabled == false) cout << "tracking disabled" << endl;
+				else cout << "tracking enabled" << endl;
+				break;
+			case 100:
+				debugMode = !debugMode;
+				if (debugMode == false) cout << "tracking disabled" << endl;
+				else cout << "tracking enabled" << endl;
+				break;
+			case 112:
+				pause = !pause;
+				if (pause == true) {
+					cout << "code pasued, press 'p' again" << endl;
+					while (pause == true) {
+						switch (waitKey()) {
+						case 112:
+							pause = false;
+							cout << "code resumed" << endl;
+							break;
+						}
+					}
+				}
+			}
+		}
+		capture.release();
+	}
+	return 0;
+}
